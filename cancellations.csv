@@ -1,0 +1,7 @@
+
+cancellation_code,cancellation_reason
+GUEST,Guest changed plans
+WEATHER,Weather or travel disruption
+DUPLICATE,Duplicate reservation
+PAYMENT,Payment failure
+UNKNOWN,Unspecified cancellation code
