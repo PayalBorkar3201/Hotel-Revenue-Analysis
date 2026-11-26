@@ -19,6 +19,21 @@ def _clean_df(df: pd.DataFrame) -> pd.DataFrame:
 
     out.columns = [str(c).strip().lstrip("\ufeff") for c in out.columns]
 
+    rename_map = {}
+    for col in out.columns:
+        low = col.lower().replace(" ", "_")
+        if low in {"rate_plan_id", "rate_id", "plan_id"} and "rate_plan_id" not in out.columns and col != "rate_plan_id":
+            rename_map[col] = "rate_plan_id"
+        elif low in {"nightly_rate", "rate", "rate_per_night", "price"} and "nightly_rate" not in out.columns and col != "nightly_rate":
+            rename_map[col] = "nightly_rate"
+        elif low in {"status", "booking_status", "reservation_status"} and "status" not in out.columns and col != "status":
+            rename_map[col] = "status"
+        elif low in {"reservation_id", "booking_id", "id"} and "reservation_id" not in out.columns and col != "reservation_id":
+            rename_map[col] = "reservation_id"
+
+    if rename_map:
+        out = out.rename(columns=rename_map)
+
     if "reservation_id" in out.columns:
         out["reservation_id"] = out["reservation_id"].astype(str).str.strip()
 
@@ -111,7 +126,11 @@ def reconcile_reservations(data):
     if "nightly_rate" not in df.columns:
         df["nightly_rate"] = 0.0
 
-    if not rates.empty and {"rate_plan_id", "nightly_rate"}.issubset(rates.columns):
+    if (
+        not rates.empty
+        and "rate_plan_id" in df.columns
+        and {"rate_plan_id", "nightly_rate"}.issubset(rates.columns)
+    ):
         df["rate_plan_id"] = df["rate_plan_id"].astype(str).str.strip()
         rates["rate_plan_id"] = rates["rate_plan_id"].astype(str).str.strip()
         df = df.merge(
