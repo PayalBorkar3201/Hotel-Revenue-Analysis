@@ -20,16 +20,31 @@ def _clean_df(df: pd.DataFrame) -> pd.DataFrame:
     out.columns = [str(c).strip().lstrip("\ufeff") for c in out.columns]
 
     rename_map = {}
-    for col in out.columns:
-        low = col.lower().replace(" ", "_")
-        if low in {"rate_plan_id", "rate_id", "plan_id"} and "rate_plan_id" not in out.columns and col != "rate_plan_id":
-            rename_map[col] = "rate_plan_id"
-        elif low in {"nightly_rate", "rate", "rate_per_night", "price"} and "nightly_rate" not in out.columns and col != "nightly_rate":
-            rename_map[col] = "nightly_rate"
-        elif low in {"status", "booking_status", "reservation_status"} and "status" not in out.columns and col != "status":
-            rename_map[col] = "status"
-        elif low in {"reservation_id", "booking_id", "id"} and "reservation_id" not in out.columns and col != "reservation_id":
-            rename_map[col] = "reservation_id"
+    existing_lower = {c.lower().replace(" ", "_"): c for c in out.columns}
+
+    aliases = {
+        "reservation_id": ["reservation_id", "booking_id", "id"],
+        "guest_name": ["guest_name", "guest", "customer_name", "name"],
+        "room_id": ["room_id", "room", "room_no", "room_number"],
+        "room_category": ["room_category", "category", "room_type"],
+        "check_in": ["check_in", "checkin", "check_in_date", "arrival", "arrival_date"],
+        "check_out": ["check_out", "checkout", "check_out_date", "departure", "departure_date"],
+        "booking_date": ["booking_date", "booked_date", "created_date"],
+        "status": ["status", "booking_status", "reservation_status"],
+        "cancellation_code": ["cancellation_code", "cancel_code", "cancel_reason_code"],
+        "rate_plan_id": ["rate_plan_id", "rate_id", "plan_id"],
+        "nightly_rate": ["nightly_rate", "rate", "rate_per_night", "price"],
+    }
+
+    for target, candidates in aliases.items():
+        if target in out.columns:
+            continue
+        for cand in candidates:
+            if cand in existing_lower:
+                src = existing_lower[cand]
+                if src != target and src not in rename_map:
+                    rename_map[src] = target
+                break
 
     if rename_map:
         out = out.rename(columns=rename_map)
@@ -74,6 +89,9 @@ def reconcile_reservations(data):
     if "reservation_id" in df.columns:
         df = df.drop_duplicates(subset=["reservation_id"], keep="first").reset_index(drop=True)
 
+    if "guest_name" not in df.columns:
+        df["guest_name"] = ""
+
     if "status" not in df.columns:
         df["status"] = "confirmed"
 
@@ -99,8 +117,9 @@ def reconcile_reservations(data):
     df["status"] = df["status"].replace(status_mapping)
 
     for col in ["check_in", "check_out", "booking_date"]:
-        if col in df.columns:
-            df[col] = pd.to_datetime(df[col], dayfirst=True, errors="coerce")
+        if col not in df.columns:
+            df[col] = pd.NaT
+        df[col] = pd.to_datetime(df[col], dayfirst=True, errors="coerce")
 
     if "room_id" not in df.columns:
         df["room_id"] = ""
@@ -188,6 +207,13 @@ def reconcile_reservations(data):
 
 def calculate_occupancy(df, rooms, start_date, end_date):
     df = _clean_df(df)
+    if "check_in" not in df.columns:
+        df["check_in"] = pd.NaT
+    if "check_out" not in df.columns:
+        df["check_out"] = pd.NaT
+    if "nights" not in df.columns:
+        df["nights"] = (pd.to_datetime(df["check_out"], errors="coerce") - pd.to_datetime(df["check_in"], errors="coerce")).dt.days
+
     total_rooms = len(rooms)
     dates = pd.date_range(start=start_date, end=end_date, freq="D")
     results = []
@@ -240,6 +266,8 @@ def calculate_summary(df, daily):
 
 def revenue_by_category(df):
     df = _clean_df(df)
+    if "room_category" not in df.columns:
+        df["room_category"] = "Unknown"
     result = (
         df[~df["status"].isin(["cancelled", "no_show"])]
         .groupby("room_category")["estimated_revenue"]
@@ -264,3 +292,4 @@ def cancellation_analysis(df):
         .reset_index(name="Total Cancellations")
     )
     return result
+    
