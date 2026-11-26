@@ -1,8 +1,29 @@
-
 import pandas as pd
 from pathlib import Path
 
 DATA_FOLDER = Path("dataset")
+
+
+def _normalize_reservation_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Ensure reservation_id is a standard column rather than an index."""
+    if not isinstance(df, pd.DataFrame):
+        return df
+
+    out = df.copy()
+
+    if out.index.name == "reservation_id":
+        out = out.reset_index()
+    elif "reservation_id" not in out.columns and "reservation_id" in out.index.names:
+        out = out.reset_index(level="reservation_id")
+
+    # Reset generic or leftover index so .loc[index, ...] always aligns cleanly
+    if isinstance(out.index, pd.MultiIndex) or out.index.name is not None:
+        out = out.reset_index(drop=True)
+
+    if "reservation_id" in out.columns:
+        out["reservation_id"] = out["reservation_id"].astype(str).str.strip()
+
+    return out
 
 
 # Load all hotel datasets
@@ -27,22 +48,25 @@ def load_datasets():
 
         data[key] = pd.read_csv(path)
 
+    data["reservations"] = _normalize_reservation_df(data["reservations"])
+
     return data
 
 
 # Clean and reconcile reservation records
 def reconcile_reservations(data):
 
-    df = data["reservations"].copy()
+    df = _normalize_reservation_df(data["reservations"])
 
     rooms = data["rooms"].copy()
     rates = data["rates"].copy()
 
     # Remove duplicate reservation IDs
-    df = df.drop_duplicates(
-        subset=["reservation_id"],
-        keep="first"
-    )
+    if "reservation_id" in df.columns:
+        df = df.drop_duplicates(
+            subset=["reservation_id"],
+            keep="first"
+        ).reset_index(drop=True)
 
     # Standardize status
     df["status"] = (
@@ -69,10 +93,11 @@ def reconcile_reservations(data):
 
     # Convert date columns
     for col in ["check_in", "check_out", "booking_date"]:
-        df[col] = pd.to_datetime(
-            df[col],
-            errors="coerce"
-        )
+        if col in df.columns:
+            df[col] = pd.to_datetime(
+                df[col],
+                errors="coerce"
+            )
 
     # Standardize IDs
     df["room_id"] = df["room_id"].astype(str).str.strip()
@@ -86,11 +111,14 @@ def reconcile_reservations(data):
         suffixes=("", "_master")
     )
 
-    df["room_category"] = df["room_category_master"].fillna(
-        df["room_category"]
-    )
-
-    df.drop(columns=["room_category_master"], inplace=True)
+    if "room_category_master" in df.columns:
+        if "room_category" in df.columns:
+            df["room_category"] = df["room_category_master"].fillna(
+                df["room_category"]
+            )
+        else:
+            df["room_category"] = df["room_category_master"]
+        df.drop(columns=["room_category_master"], inplace=True)
 
     # Merge rate plan information
     df = df.merge(
@@ -177,12 +205,13 @@ def reconcile_reservations(data):
             ):
                 previous_end = row["check_out"]
 
-    return df
+    return _normalize_reservation_df(df)
 
 
 # Calculate daily occupancy
 def calculate_occupancy(df, rooms, start_date, end_date):
 
+    df = _normalize_reservation_df(df)
     total_rooms = len(rooms)
 
     dates = pd.date_range(
@@ -225,6 +254,7 @@ def calculate_occupancy(df, rooms, start_date, end_date):
 # Calculate summary measures
 def calculate_summary(df, daily):
 
+    df = _normalize_reservation_df(df)
     total = len(df)
 
     cancelled = len(
@@ -263,6 +293,8 @@ def calculate_summary(df, daily):
 # Revenue by room category
 def revenue_by_category(df):
 
+    df = _normalize_reservation_df(df)
+
     result = (
         df[~df["status"].isin(["cancelled", "no_show"])]
         .groupby("room_category")["estimated_revenue"]
@@ -275,6 +307,8 @@ def revenue_by_category(df):
 
 # Cancellation analysis
 def cancellation_analysis(df):
+
+    df = _normalize_reservation_df(df)
 
     cancelled = df[
         df["status"] == "cancelled"
