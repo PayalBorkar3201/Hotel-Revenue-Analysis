@@ -4,7 +4,7 @@ from pathlib import Path
 DATA_FOLDER = Path("dataset")
 
 
-def _clean_df(df: pd.DataFrame) -> pd.DataFrame:
+def _clean_df(df: pd.DataFrame, ensure_res_id: bool = False) -> pd.DataFrame:
     if not isinstance(df, pd.DataFrame):
         return df
 
@@ -49,6 +49,12 @@ def _clean_df(df: pd.DataFrame) -> pd.DataFrame:
     if rename_map:
         out = out.rename(columns=rename_map)
 
+    if ensure_res_id and "reservation_id" not in out.columns:
+        if len(out.columns) > 0:
+            out["reservation_id"] = out.iloc[:, 0].astype(str).str.strip()
+        else:
+            out["reservation_id"] = []
+
     if "reservation_id" in out.columns:
         out["reservation_id"] = out["reservation_id"].astype(str).str.strip()
 
@@ -72,7 +78,7 @@ def load_datasets():
             raise FileNotFoundError(f"Missing file: {filename}")
         data[key] = pd.read_csv(path, sep=None, engine="python")
 
-    data["reservations"] = _clean_df(data["reservations"])
+    data["reservations"] = _clean_df(data["reservations"], ensure_res_id=True)
     data["rooms"] = _clean_df(data["rooms"])
     data["rates"] = _clean_df(data["rates"])
     data["cancellations"] = _clean_df(data["cancellations"])
@@ -82,11 +88,11 @@ def load_datasets():
 
 
 def reconcile_reservations(data):
-    df = _clean_df(data["reservations"])
+    df = _clean_df(data["reservations"], ensure_res_id=True)
     rooms = _clean_df(data["rooms"])
     rates = _clean_df(data["rates"])
 
-    if "reservation_id" in df.columns:
+    if "reservation_id" in df.columns and not df.empty:
         df = df.drop_duplicates(subset=["reservation_id"], keep="first").reset_index(drop=True)
 
     if "guest_name" not in df.columns:
@@ -202,11 +208,11 @@ def reconcile_reservations(data):
             if previous_end is None or row["check_out"] > previous_end:
                 previous_end = row["check_out"]
 
-    return _clean_df(df)
+    return _clean_df(df, ensure_res_id=True)
 
 
 def calculate_occupancy(df, rooms, start_date, end_date):
-    df = _clean_df(df)
+    df = _clean_df(df, ensure_res_id=True)
     if "check_in" not in df.columns:
         df["check_in"] = pd.NaT
     if "check_out" not in df.columns:
@@ -244,7 +250,7 @@ def calculate_occupancy(df, rooms, start_date, end_date):
 
 
 def calculate_summary(df, daily):
-    df = _clean_df(df)
+    df = _clean_df(df, ensure_res_id=True)
     total = len(df)
     cancelled = len(df[df["status"] == "cancelled"])
     revenue = df["estimated_revenue"].sum()
@@ -265,7 +271,7 @@ def calculate_summary(df, daily):
 
 
 def revenue_by_category(df):
-    df = _clean_df(df)
+    df = _clean_df(df, ensure_res_id=True)
     if "room_category" not in df.columns:
         df["room_category"] = "Unknown"
     result = (
@@ -278,7 +284,7 @@ def revenue_by_category(df):
 
 
 def cancellation_analysis(df):
-    df = _clean_df(df)
+    df = _clean_df(df, ensure_res_id=True)
     if "cancellation_code" not in df.columns:
         return pd.DataFrame(columns=["cancellation_code", "Total Cancellations"])
 
@@ -292,4 +298,3 @@ def cancellation_analysis(df):
         .reset_index(name="Total Cancellations")
     )
     return result
-    
