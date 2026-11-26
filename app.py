@@ -1,4 +1,5 @@
 from datetime import timedelta
+import calendar
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -16,6 +17,14 @@ from database import (
     initialize_database,
     save_processed_data
 )
+
+
+def add_months(d, months: int):
+    month_idx = (d.month - 1) + months
+    year = d.year + month_idx // 12
+    month = (month_idx % 12) + 1
+    last_day = calendar.monthrange(year, month)[1]
+    return d.replace(year=year, month=month, day=min(d.day, last_day))
 
 
 def ensure_reservation_id_column(frame: pd.DataFrame) -> pd.DataFrame:
@@ -107,14 +116,14 @@ selected_nav = st.sidebar.radio(
 st.session_state.active_page = selected_nav
 
 today_date = pd.Timestamp.today().normalize().date()
-far_future_date = today_date + timedelta(days=365 * 5)
+max_booking_date = add_months(today_date, 6)
 
-st.sidebar.subheader("Date & Booking Controls")
+st.sidebar.subheader("Date & Booking Controls (Up to 6 Months)")
 selected_booking_date = st.sidebar.date_input(
-    "Select booking / stay date",
+    "Select stay date",
     value=today_date,
     min_value=today_date,
-    max_value=far_future_date
+    max_value=max_booking_date
 )
 
 if st.sidebar.button("Book Hotel", type="primary", use_container_width=True):
@@ -254,12 +263,13 @@ if page == "Dashboard":
 
 elif page == "Book Hotel":
     st.header("🏨 Book Hotel")
+    st.caption(f"Bookings can be made from {today_date.strftime('%d-%m-%Y')} up to {max_booking_date.strftime('%d-%m-%Y')} (6 months ahead).")
 
     chosen_date = st.date_input(
         "Selected Stay Date",
         value=selected_booking_date,
         min_value=today_date,
-        max_value=far_future_date,
+        max_value=max_booking_date,
         key="book_hotel_date_picker"
     )
 
@@ -307,102 +317,116 @@ elif page == "Book Hotel":
     st.markdown("---")
     st.subheader("Create New Booking")
 
+    category_rates = {
+        "Basic": 2000,
+        "Deluxe": 3500,
+        "Suite": 6000
+    }
+
     room_options = (
         rooms_df["room_id"].astype(str).tolist()
         if not rooms_df.empty and "room_id" in rooms_df.columns
         else ["101", "102", "201", "202", "301"]
     )
 
+    r1, r2, r3 = st.columns(3)
+    room_category = r1.selectbox("Room Category", list(category_rates.keys()))
+    default_rate = category_rates[room_category]
+    room_id = r2.selectbox("Room ID", room_options)
+    check_out_date = r3.date_input(
+        "Check-Out Date",
+        value=min(chosen_date + timedelta(days=1), max_booking_date),
+        min_value=chosen_date + timedelta(days=1),
+        max_value=max_booking_date
+    )
+
+    nights = max((check_out_date - chosen_date).days, 1)
+    preview_revenue = default_rate * nights
+
+    p1, p2, p3 = st.columns(3)
+    p1.metric("Room Category Rate (Per Night)", f"₹{default_rate:,}")
+    p2.metric("Stay Duration", f"{nights} night(s)")
+    p3.metric("Estimated Revenue", f"₹{preview_revenue:,}")
+
     with st.form("new_booking_form"):
-        c1, c2 = st.columns(2)
-        guest_name = c1.text_input("Guest Name", placeholder="Enter guest name")
-        room_id = c2.selectbox("Room ID", room_options)
-
-        c3, c4 = st.columns(2)
-        check_out_date = c3.date_input(
-            "Check-Out Date",
-            value=chosen_date + timedelta(days=1),
-            min_value=chosen_date + timedelta(days=1),
-            max_value=far_future_date
-        )
-        nightly_rate = c4.number_input("Nightly Rate (₹)", min_value=500, max_value=100000, value=3500, step=500)
-
+        guest_name = st.text_input("Guest Name", placeholder="Enter guest name (e.g., ABC)")
         submitted = st.form_submit_button("Confirm Booking")
 
         if submitted:
-            nights = max((check_out_date - chosen_date).days, 1)
             next_num = 1001 + len(df)
             new_row = {
                 "reservation_id": f"R{next_num}",
                 "guest_name": guest_name.strip() if guest_name.strip() else "Walk-In Guest",
                 "room_id": str(room_id),
-                "room_category": "Standard",
+                "room_category": room_category,
                 "check_in": pd.Timestamp(chosen_date),
                 "check_out": pd.Timestamp(check_out_date),
                 "booking_date": pd.Timestamp.today().normalize(),
                 "status": "confirmed",
                 "cancellation_code": "",
-                "rate_plan_id": "BAR",
-                "estimated_revenue": nightly_rate * nights,
+                "rate_plan_id": room_category.upper(),
+                "estimated_revenue": preview_revenue,
                 "overlap_flag": 0,
                 "data_issue": ""
             }
             st.session_state.custom_bookings.append(new_row)
-            st.success(f"Booking {new_row['reservation_id']} created for {chosen_date.strftime('%d-%m-%Y')} to {check_out_date.strftime('%d-%m-%Y')}.")
+            st.success(f"Booking {new_row['reservation_id']} confirmed for {chosen_date.strftime('%d-%m-%Y')} to {check_out_date.strftime('%d-%m-%Y')} ({room_category}, ₹{preview_revenue:,}).")
             st.rerun()
 
 
 elif page == "Upcoming Bookings":
-    st.header("📅 Upcoming Hotel Bookings")
+    st.header("📅 Upcoming Hotel Bookings (Next 6 Months)")
 
-    today = pd.Timestamp.today().normalize()
-    future_end = today + pd.Timedelta(days=365 * 5)
+    today = pd.Timestamp.today().normalize().date()
+    six_months_end = add_months(today, 6)
 
     date_range = st.date_input(
-        "Select Upcoming Booking Period",
-        value=(selected_booking_date, future_end.date()),
-        min_value=today.date(),
-        max_value=future_end.date()
+        "Select Upcoming Booking Period (Max 6 Months)",
+        value=(today, six_months_end),
+        min_value=today,
+        max_value=six_months_end
     )
 
     if isinstance(date_range, (tuple, list)) and len(date_range) == 2:
         start_date, end_date = date_range
+    else:
+        start_date = end_date = date_range if not isinstance(date_range, (tuple, list)) else date_range[0]
 
-        upcoming = df[
-            df["check_in"].notna()
-            & (df["check_in"] >= pd.Timestamp(start_date))
-            & (df["check_in"] <= pd.Timestamp(end_date))
-            & (~df["status"].isin(["cancelled", "no_show"]))
-        ].copy().sort_values("check_in")
+    upcoming = df[
+        df["check_in"].notna()
+        & (df["check_in"] >= pd.Timestamp(start_date))
+        & (df["check_in"] <= pd.Timestamp(end_date))
+        & (~df["status"].isin(["cancelled", "no_show"]))
+    ].copy().sort_values("check_in")
 
-        st.metric("Upcoming Reservations", len(upcoming))
+    st.metric("Upcoming Reservations", len(upcoming))
 
-        if not upcoming.empty:
-            st.dataframe(
-                upcoming[
-                    [
-                        "reservation_id",
-                        "guest_name",
-                        "room_id",
-                        "room_category",
-                        "check_in",
-                        "check_out",
-                        "status",
-                        "estimated_revenue"
-                    ]
-                ],
-                use_container_width=True,
-                hide_index=True
-            )
+    if not upcoming.empty:
+        st.dataframe(
+            upcoming[
+                [
+                    "reservation_id",
+                    "guest_name",
+                    "room_id",
+                    "room_category",
+                    "check_in",
+                    "check_out",
+                    "status",
+                    "estimated_revenue"
+                ]
+            ],
+            use_container_width=True,
+            hide_index=True
+        )
 
-            st.download_button(
-                "Download Upcoming Bookings",
-                upcoming.to_csv(index=False).encode("utf-8"),
-                "upcoming_bookings.csv",
-                "text/csv"
-            )
-        else:
-            st.info("No upcoming bookings found for the selected dates.")
+        st.download_button(
+            "Download Upcoming Bookings",
+            upcoming.to_csv(index=False).encode("utf-8"),
+            "upcoming_bookings.csv",
+            "text/csv"
+        )
+    else:
+        st.info("No upcoming bookings found in the next 6 months.")
 
 
 elif page == "Reservation Records":
