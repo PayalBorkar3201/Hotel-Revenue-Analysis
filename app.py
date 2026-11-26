@@ -17,6 +17,17 @@ from database import (
 )
 
 
+def ensure_reservation_id_column(frame: pd.DataFrame) -> pd.DataFrame:
+    if not isinstance(frame, pd.DataFrame):
+        return frame
+    result = frame.copy()
+    if result.index.name == "reservation_id":
+        result = result.reset_index()
+    elif "reservation_id" not in result.columns and "reservation_id" in result.index.names:
+        result = result.reset_index(level="reservation_id")
+    return result
+
+
 # Page configuration
 st.set_page_config(
     page_title="Hotel Revenue Analytics",
@@ -117,7 +128,7 @@ try:
 
     data = load_datasets()
 
-    df = reconcile_reservations(data)
+    df = ensure_reservation_id_column(reconcile_reservations(data))
 
     save_columns = [
         "reservation_id",
