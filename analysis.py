@@ -48,7 +48,8 @@ def _clean_df(df: pd.DataFrame, ensure_res_id: bool = False) -> pd.DataFrame:
         "check_out": ["check_out", "checkout", "check_out_date", "departure", "departure_date"],
         "booking_date": ["booking_date", "booked_date", "created_date"],
         "status": ["status", "booking_status", "reservation_status"],
-        "cancellation_code": ["cancellation_code", "cancel_code", "cancel_reason_code"],
+        "cancellation_code": ["cancellation_code", "cancel_code", "cancel_reason_code", "code"],
+        "cancellation_reason": ["cancellation_reason", "cancel_reason", "reason", "description"],
         "rate_plan_id": ["rate_plan_id", "rate_id", "plan_id"],
         "nightly_rate": ["nightly_rate", "rate", "rate_per_night", "price"],
     }
@@ -93,14 +94,9 @@ def load_datasets():
         path = DATA_FOLDER / filename
         if not path.exists():
             raise FileNotFoundError(f"Missing file: {filename}")
-        data[key] = pd.read_csv(path, sep=None, engine="python")
+        data[key] = _clean_df(pd.read_csv(path, sep=None, engine="python"))
 
     data["reservations"] = _clean_df(data["reservations"], ensure_res_id=True)
-    data["rooms"] = _clean_df(data["rooms"])
-    data["rates"] = _clean_df(data["rates"])
-    data["cancellations"] = _clean_df(data["cancellations"])
-    data["events"] = _clean_df(data["events"])
-
     return data
 
 
@@ -186,9 +182,7 @@ def reconcile_reservations(data):
             df.drop(columns=["nightly_rate_rate"], inplace=True)
 
     df["nightly_rate"] = pd.to_numeric(df["nightly_rate"], errors="coerce").fillna(0)
-
     df["nights"] = (df["check_out"] - df["check_in"]).dt.days
-
     df["data_issue"] = ""
 
     invalid_dates = (
@@ -249,17 +243,20 @@ def calculate_occupancy(df, rooms, start_date, end_date):
     ]
 
     for date in dates:
-        occupied = active[
-            (active["check_in"] <= date)
-            & (active["check_out"] > date)
-        ]["room_id"].nunique()
-
+        occupied = int(
+            active[
+                (active["check_in"] <= date)
+                & (active["check_out"] > date)
+            ]["room_id"].nunique()
+        )
+        available = max(total_rooms - occupied, 0)
         occupancy = (occupied / total_rooms * 100) if total_rooms > 0 else 0
 
         results.append({
             "Date": date,
             "Occupied Rooms": occupied,
-            "Available Rooms": total_rooms,
+            "Available Rooms": available,
+            "Total Rooms": total_rooms,
             "Occupancy Rate": round(occupancy, 2)
         })
 
@@ -300,13 +297,18 @@ def revenue_by_category(df):
     return result
 
 
-def cancellation_analysis(df):
+def cancellation_analysis(df, cancellations_df=None):
     df = _clean_df(df, ensure_res_id=True)
     if "cancellation_code" not in df.columns:
-        return pd.DataFrame(columns=["cancellation_code", "Total Cancellations"])
+        return pd.DataFrame(columns=["cancellation_code", "cancellation_reason", "Total Cancellations"])
 
     cancelled = df[df["status"] == "cancelled"].copy()
-    cancelled["cancellation_code"] = cancelled["cancellation_code"].fillna("UNKNOWN").astype(str).str.strip()
+    cancelled["cancellation_code"] = (
+        cancelled["cancellation_code"]
+        .fillna("UNKNOWN")
+        .astype(str)
+        .str.strip()
+    )
     cancelled.loc[cancelled["cancellation_code"] == "", "cancellation_code"] = "UNKNOWN"
 
     result = (
@@ -314,4 +316,26 @@ def cancellation_analysis(df):
         .size()
         .reset_index(name="Total Cancellations")
     )
-    return result
+
+    reason_map = {
+        "GUEST": "Guest Requested Cancellation",
+        "WEATHER": "Weather / Travel Disruption",
+        "DUPLICATE": "Duplicate Booking",
+        "NO_SHOW": "Guest No-Show",
+        "UNKNOWN": "Reason Not Specified",
+    }
+
+    if cancellations_df is not None and not cancellations_df.empty:
+        c_clean = _clean_df(cancellations_df)
+        if "cancellation_code" in c_clean.columns and "cancellation_reason" in c_clean.columns:
+            c_clean["cancellation_code"] = c_clean["cancellation_code"].astype(str).str.strip()
+            mapped = dict(zip(c_clean["cancellation_code"], c_clean["cancellation_reason"].astype(str).str.strip()))
+            reason_map.update({k: v for k, v in mapped.items() if v})
+
+    result["cancellation_reason"] = (
+        result["cancellation_code"]
+        .map(reason_map)
+        .fillna(result["cancellation_code"])
+    )
+
+    return result[["cancellation_code", "cancellation_reason", "Total Cancellations"]]
