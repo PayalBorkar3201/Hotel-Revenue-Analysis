@@ -17,7 +17,7 @@ def _clean_df(df: pd.DataFrame) -> pd.DataFrame:
     if isinstance(out.index, pd.MultiIndex) or out.index.name is not None:
         out = out.reset_index(drop=True)
 
-    out.columns = [str(c).strip() for c in out.columns]
+    out.columns = [str(c).strip().lstrip("\ufeff") for c in out.columns]
 
     if "reservation_id" in out.columns:
         out["reservation_id"] = out["reservation_id"].astype(str).str.strip()
@@ -40,7 +40,7 @@ def load_datasets():
         path = DATA_FOLDER / filename
         if not path.exists():
             raise FileNotFoundError(f"Missing file: {filename}")
-        data[key] = pd.read_csv(path)
+        data[key] = pd.read_csv(path, sep=None, engine="python")
 
     data["reservations"] = _clean_df(data["reservations"])
     data["rooms"] = _clean_df(data["rooms"])
@@ -87,6 +87,11 @@ def reconcile_reservations(data):
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], dayfirst=True, errors="coerce")
 
+    if "room_id" not in df.columns:
+        df["room_id"] = ""
+    if "room_id" not in rooms.columns:
+        rooms["room_id"] = ""
+
     df["room_id"] = df["room_id"].astype(str).str.strip()
     rooms["room_id"] = rooms["room_id"].astype(str).str.strip()
 
@@ -132,7 +137,7 @@ def reconcile_reservations(data):
     )
     df.loc[invalid_dates, "data_issue"] = "Invalid booking dates"
 
-    valid_rooms = set(rooms["room_id"]) if "room_id" in rooms.columns else set()
+    valid_rooms = set(rooms["room_id"]) - {""}
     if valid_rooms:
         invalid_rooms = ~df["room_id"].isin(valid_rooms)
         df.loc[invalid_rooms & (df["data_issue"] == ""), "data_issue"] = "Invalid room ID"
