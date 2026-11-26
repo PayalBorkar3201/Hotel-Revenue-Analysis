@@ -1,0 +1,4 @@
+rate_plan_id	rate_plan_name	nightly_rate
+BAR	Best Available Rate	3500
+FLEX	Flexible Rate	5200
+ADV	Advance Purchase	6800
