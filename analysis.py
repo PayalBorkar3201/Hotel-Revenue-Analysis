@@ -4,6 +4,23 @@ from pathlib import Path
 DATA_FOLDER = Path("dataset")
 
 
+def _parse_dates(series: pd.Series) -> pd.Series:
+    s = series.astype(str).str.strip()
+    s = s.replace({"": pd.NA, "nan": pd.NA, "NaN": pd.NA, "None": pd.NA})
+
+    parsed = pd.Series(pd.NaT, index=series.index, dtype="datetime64[ns]")
+    for fmt in ("%d-%m-%Y", "%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d", "%m-%d-%Y", "%m/%d/%Y"):
+        mask = parsed.isna() & s.notna()
+        if mask.any():
+            parsed.loc[mask] = pd.to_datetime(s.loc[mask], format=fmt, errors="coerce")
+
+    remaining = parsed.isna() & s.notna()
+    if remaining.any():
+        parsed.loc[remaining] = pd.to_datetime(s.loc[remaining], dayfirst=True, errors="coerce")
+
+    return parsed
+
+
 def _clean_df(df: pd.DataFrame, ensure_res_id: bool = False) -> pd.DataFrame:
     if not isinstance(df, pd.DataFrame):
         return df
@@ -125,7 +142,7 @@ def reconcile_reservations(data):
     for col in ["check_in", "check_out", "booking_date"]:
         if col not in df.columns:
             df[col] = pd.NaT
-        df[col] = pd.to_datetime(df[col], dayfirst=True, errors="coerce")
+        df[col] = _parse_dates(df[col])
 
     if "room_id" not in df.columns:
         df["room_id"] = ""
@@ -218,7 +235,7 @@ def calculate_occupancy(df, rooms, start_date, end_date):
     if "check_out" not in df.columns:
         df["check_out"] = pd.NaT
     if "nights" not in df.columns:
-        df["nights"] = (pd.to_datetime(df["check_out"], errors="coerce") - pd.to_datetime(df["check_in"], errors="coerce")).dt.days
+        df["nights"] = (_parse_dates(df["check_out"]) - _parse_dates(df["check_in"])).dt.days
 
     total_rooms = len(rooms)
     dates = pd.date_range(start=start_date, end=end_date, freq="D")
