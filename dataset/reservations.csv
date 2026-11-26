@@ -1,27 +1,26 @@
-												
-reservation_id	guest_name	room_id	room_category	check_in	check_out	booking_date	status	cancellation_code	rate_plan_id	adults	children	channel
-R1001	Aarav Mehta	101	Standard	02-01-2026	05-01-2026	15-12-2025	checked_out		BAR	2	0	Direct
-R1002	Diya Shah	102	Standard	03-01-2026	06-01-2026	20-12-2025	checked_out		BAR	2	1	OTA
-R1003	Kabir Rao	201	Deluxe	04-01-2026	08-01-2026	22-12-2025	checked_out		FLEX	2	0	Corporate
-R1004	Anaya Iyer	301	Suite	05-01-2026	07-01-2026	28-12-2025	cancelled	GUEST	ADV	2	0	OTA
-R1005	Vivaan Joshi	103	Standard	07-01-2026	10-01-2026	01-01-2026	checked_out		BAR	1	0	Direct
-R1006	Sara Khan	202	Deluxe	08-01-2026	12-01-2026	02-01-2026	checked_out		FLEX	2	1	OTA
-R1007	Arjun Patel	302	Suite	10-01-2026	13-01-2026	03-01-2026	cancelled	WEATHER	ADV	2	0	Direct
-R1008	Myra Desai	104	Standard	11-01-2026	14-01-2026	05-01-2026	checked_out		BAR	2	0	OTA
-R1009	Reyansh Kulkarni	203	Deluxe	12-01-2026	16-01-2026	06-01-2026	checked_out		FLEX	2	0	Corporate
-R1010	Ira Nair	303	Suite	14-01-2026	17-01-2026	08-01-2026	no_show		ADV	2	0	OTA
-R1011	Advik Shah	105	Standard	16-01-2026	19-01-2026	10-01-2026	checked_out		BAR	1	0	Direct
-R1012	Aditi Rao	204	Deluxe	17-01-2026	21-01-2026	11-01-2026	checked_out		FLEX	2	0	OTA
-R1013	Ishaan Mehta	304	Suite	18-01-2026	22-01-2026	12-01-2026	cancelled	DUPLICATE	ADV	2	0	Direct
-R1014	Kiara Joshi	106	Standard	20-01-2026	23-01-2026	14-01-2026	checked_out		BAR	2	0	OTA
-R1015	Atharv Patil	205	Deluxe	22-01-2026	26-01-2026	15-01-2026	checked_out		FLEX	2	1	Corporate
-R1016	Riya Kapoor	305	Suite	24-01-2026	27-01-2026	16-01-2026	confirmed		ADV	2	0	Direct
-R1017	Dhruv Sinha	107	Standard	25-01-2026	28-01-2026	18-01-2026	confirmed		BAR	1	0	OTA
-R1018	Meera Kulkarni	206	Deluxe	26-01-2026	30-01-2026	19-01-2026	confirmed		FLEX	2	0	Corporate
-R1019	Neil Verma	306	Suite	27-01-2026	30-01-2026	20-01-2026	confirmed		ADV	2	0	Direct
-R1020	Tara Menon	101	Standard	04-01-2026	06-01-2026	29-12-2025	confirmed		BAR	2	0	OTA
-R1021	Om Bhosale	108	Standard	01-02-2026	04-02-2026	10-01-2026	confirmed		BAR	2	0	Direct
-R1022	Saanvi Gupta	207	Deluxe	02-02-2026	06-02-2026	12-01-2026	confirmed		FLEX	2	0	OTA
-R1023	Yuvaan Rao	307	Suite	03-02-2026	07-02-2026	13-01-2026	confirmed		ADV	2	1	Corporate
-R1024	Pari Shah	109	Standard	05-02-2026	08-02-2026	15-01-2026	cancelled	GUEST	BAR	1	0	OTA
-R1025	Rudra Iyer	208	Deluxe	07-02-2026	11-02-2026	17-01-2026	confirmed		FLEX	2	0	Direct
+reservation_id,guest_name,room_id,room_category,check_in,check_out,booking_date,status,cancellation_code,rate_plan_id,adults,children,channel
+R1001,Aarav Mehta,101,Standard,02-01-2026,05-01-2026,15-12-2025,checked_out,,BAR,2,0,Direct
+R1002,Diya Shah,102,Standard,03-01-2026,06-01-2026,20-12-2025,checked_out,,BAR,2,1,OTA
+R1003,Kabir Rao,201,Deluxe,04-01-2026,08-01-2026,22-12-2025,checked_out,,FLEX,2,0,Corporate
+R1004,Anaya Iyer,301,Suite,05-01-2026,07-01-2026,28-12-2025,cancelled,GUEST,ADV,2,0,OTA
+R1005,Vivaan Joshi,103,Standard,07-01-2026,10-01-2026,01-01-2026,checked_out,,BAR,1,0,Direct
+R1006,Sara Khan,202,Deluxe,08-01-2026,12-01-2026,02-01-2026,checked_out,,FLEX,2,1,OTA
+R1007,Arjun Patel,302,Suite,10-01-2026,13-01-2026,03-01-2026,cancelled,WEATHER,ADV,2,0,Direct
+R1008,Myra Desai,104,Standard,11-01-2026,14-01-2026,05-01-2026,checked_out,,BAR,2,0,OTA
+R1009,Reyansh Kulkarni,203,Deluxe,12-01-2026,16-01-2026,06-01-2026,checked_out,,FLEX,2,0,Corporate
+R1010,Ira Nair,303,Suite,14-01-2026,17-01-2026,08-01-2026,no_show,,ADV,2,0,OTA
+R1011,Advik Shah,105,Standard,16-01-2026,19-01-2026,10-01-2026,checked_out,,BAR,1,0,Direct
+R1012,Aditi Rao,204,Deluxe,17-01-2026,21-01-2026,11-01-2026,checked_out,,FLEX,2,0,OTA
+R1013,Ishaan Mehta,304,Suite,18-01-2026,22-01-2026,12-01-2026,cancelled,DUPLICATE,ADV,2,0,Direct
+R1014,Kiara Joshi,106,Standard,20-01-2026,23-01-2026,14-01-2026,checked_out,,BAR,2,0,OTA
+R1015,Atharv Patil,205,Deluxe,22-01-2026,26-01-2026,15-01-2026,checked_out,,FLEX,2,1,Corporate
+R1016,Riya Kapoor,305,Suite,24-01-2026,27-01-2026,16-01-2026,confirmed,,ADV,2,0,Direct
+R1017,Dhruv Sinha,107,Standard,25-01-2026,28-01-2026,18-01-2026,confirmed,,BAR,1,0,OTA
+R1018,Meera Kulkarni,206,Deluxe,26-01-2026,30-01-2026,19-01-2026,confirmed,,FLEX,2,0,Corporate
+R1019,Neil Verma,306,Suite,27-01-2026,30-01-2026,20-01-2026,confirmed,,ADV,2,0,Direct
+R1020,Tara Menon,101,Standard,04-01-2026,06-01-2026,29-12-2025,confirmed,,BAR,2,0,OTA
+R1021,Om Bhosale,108,Standard,01-02-2026,04-02-2026,10-01-2026,confirmed,,BAR,2,0,Direct
+R1022,Saanvi Gupta,207,Deluxe,02-02-2026,06-02-2026,12-01-2026,confirmed,,FLEX,2,0,OTA
+R1023,Yuvaan Rao,307,Suite,03-02-2026,07-02-2026,13-01-2026,confirmed,,ADV,2,1,Corporate
+R1024,Pari Shah,109,Standard,05-02-2026,08-02-2026,15-01-2026,cancelled,GUEST,BAR,1,0,OTA
+R1025,Rudra Iyer,208,Deluxe,07-02-2026,11-01-2026,17-01-2026,confirmed,,FLEX,2,0,Direct
